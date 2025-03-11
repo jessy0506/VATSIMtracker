@@ -1,20 +1,16 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { Pilot } from '../types';
 import 'leaflet/dist/leaflet.css';
 
-const createSquareIcon = (heading: number) => {
+const createPlaneIcon = (heading: number) => {
   const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
-      <rect width="12" height="12" fill="#2563eb" x="6" y="6"/>
-      <line 
-        x1="12" 
-        y1="12" 
-        x2="${12 + 8 * Math.sin(heading * Math.PI / 180)}" 
-        y2="${12 - 8 * Math.cos(heading * Math.PI / 180)}" 
-        stroke="#2563eb" 
-        stroke-width="2"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32">
+      <path 
+        d="M21,16v-2l-8-5V3.5C13,2.67,12.33,2,11.5,2S10,2.67,10,3.5V9l-8,5v2l8-2.5V19l-2,1.5V22l3.5-1l3.5,1v-1.5L13,19v-5.5L21,16z"
+        fill="#2563eb"
+        transform="rotate(${heading} 12 12)"
       />
     </svg>
   `;
@@ -22,25 +18,37 @@ const createSquareIcon = (heading: number) => {
   return new L.DivIcon({
     html: svg,
     className: 'aircraft-icon',
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-    popupAnchor: [0, -12]
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+    popupAnchor: [0, -16]
   });
 };
 
 interface MapBoundsProps {
   pilots: Pilot[];
+  selectedFlight?: string;
 }
 
-function MapBounds({ pilots }: MapBoundsProps) {
+function MapBounds({ pilots, selectedFlight }: MapBoundsProps) {
   const map = useMap();
   
   useEffect(() => {
     if (pilots.length > 0) {
+      if (selectedFlight) {
+        const selectedPilot = pilots.find(p => p.callsign === selectedFlight);
+        if (selectedPilot) {
+          map.setView(
+            [selectedPilot.latitude, selectedPilot.longitude],
+            10,
+            { animate: true }
+          );
+          return;
+        }
+      }
       const bounds = L.latLngBounds(pilots.map(pilot => [pilot.latitude, pilot.longitude]));
       map.fitBounds(bounds, { padding: [50, 50] });
     }
-  }, [pilots, map]);
+  }, [pilots, selectedFlight, map]);
 
   return null;
 }
@@ -54,8 +62,14 @@ interface FlightMapProps {
 export function FlightMap({ pilots, selectedFlight, onFlightSelect }: FlightMapProps) {
   const center = useMemo(() => {
     if (pilots.length === 0) return [0, 0];
+    if (selectedFlight) {
+      const selectedPilot = pilots.find(p => p.callsign === selectedFlight);
+      if (selectedPilot) {
+        return [selectedPilot.latitude, selectedPilot.longitude];
+      }
+    }
     return [pilots[0].latitude, pilots[0].longitude];
-  }, [pilots]);
+  }, [pilots, selectedFlight]);
 
   return (
     <MapContainer
@@ -68,12 +82,12 @@ export function FlightMap({ pilots, selectedFlight, onFlightSelect }: FlightMapP
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <MapBounds pilots={pilots} />
+      <MapBounds pilots={pilots} selectedFlight={selectedFlight} />
       {pilots.map((pilot) => (
         <Marker
           key={pilot.callsign}
           position={[pilot.latitude, pilot.longitude]}
-          icon={createSquareIcon(pilot.heading)}
+          icon={createPlaneIcon(pilot.heading)}
           eventHandlers={{
             click: () => onFlightSelect?.(pilot.callsign)
           }}

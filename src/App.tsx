@@ -4,6 +4,7 @@ import { VatsimData, FilterOptions, Pilot, FlightStatus, Metar } from './types';
 import { format, addMinutes, parse, isSameDay } from 'date-fns';
 import { fetchVatsimData, fetchMetar } from './api';
 import { FlightMap } from './components/FlightMap';
+import { JessyTracker } from './components/JessyTracker';
 
 function App() {
   const [icao, setIcao] = useState<string>('');
@@ -21,6 +22,7 @@ function App() {
     direction: 'asc' | 'desc';
   }>({ key: null, direction: 'asc' });
   const [debug, setDebug] = useState<string>('');
+  const [selectedFlight, setSelectedFlight] = useState<string>('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -222,6 +224,78 @@ function App() {
     }
   };
 
+  const activeControllers = React.useMemo(() => {
+    if (!data?.controllers || !icao) return [];
+    
+    // Remove the K prefix if present for US airports
+    const searchIcao = icao.toUpperCase();
+    const shortIcao = searchIcao.startsWith('K') ? searchIcao.slice(1) : searchIcao;
+    
+    // Get all controllers for this airport
+    const controllers = data.controllers.filter(controller => {
+      const controllerICAO = controller.callsign.split('_')[0].toUpperCase();
+      return controllerICAO === searchIcao || controllerICAO === shortIcao;
+    });
+
+    // If there are no controllers but there is ATIS, check if ATIS controller is controlling elsewhere
+    if (controllers.length === 0 && data.atis) {
+      const atisForAirport = data.atis.filter(atis => {
+        const atisICAO = atis.callsign.split('_')[0].toUpperCase();
+        return atisICAO === searchIcao || atisICAO === shortIcao;
+      });
+
+      // For each ATIS, find if the controller is working another position
+      atisForAirport.forEach(atis => {
+        const atisController = data.controllers.find(controller => controller.cid === atis.cid);
+        if (atisController) {
+          controllers.push(atisController);
+        }
+      });
+    }
+
+    return controllers;
+  }, [data, icao]);
+
+  const activeAtis = React.useMemo(() => {
+    if (!data?.atis || !icao) return [];
+    
+    // Remove the K prefix if present for US airports
+    const searchIcao = icao.toUpperCase();
+    const shortIcao = searchIcao.startsWith('K') ? searchIcao.slice(1) : searchIcao;
+    
+    return data.atis.filter(atis => {
+      const atisICAO = atis.callsign.split('_')[0].toUpperCase();
+      return atisICAO === searchIcao || atisICAO === shortIcao;
+    });
+  }, [data, icao]);
+
+  const handleTimeSort = () => {
+    setSortConfig(current => ({
+      key: 'time',
+      direction: current.key === 'time' && current.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  const handleFlightSelect = (callsign: string) => {
+    setSelectedFlight(callsign);
+    setFilters(prev => ({ ...prev, callsign }));
+  };
+
+  const getFlightCategoryColor = (category: Metar['flightCategory']): string => {
+    switch (category) {
+      case 'VFR':
+        return 'bg-green-100 text-green-800';
+      case 'MVFR':
+        return 'bg-blue-100 text-blue-800';
+      case 'IFR':
+        return 'bg-red-100 text-red-800';
+      case 'LIFR':
+        return 'bg-purple-100 text-purple-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   const filteredPilots = React.useMemo(() => {
     if (!data?.pilots) return [];
     
@@ -277,55 +351,12 @@ function App() {
     return pilots;
   }, [data, icao, airlineCode, airlineAircraftFilter, filters, sortConfig]);
 
-  const activeControllers = React.useMemo(() => {
-    if (!data?.controllers || !icao) return [];
-    
-    return data.controllers.filter(controller => {
-      const controllerICAO = controller.callsign.split('_')[0];
-      return controllerICAO.toUpperCase() === icao.toUpperCase();
-    });
-  }, [data, icao]);
-
-  const activeAtis = React.useMemo(() => {
-    if (!data?.atis || !icao) return [];
-    
-    return data.atis.filter(atis => {
-      const atisICAO = atis.callsign.split('_')[0];
-      return atisICAO.toUpperCase() === icao.toUpperCase();
-    });
-  }, [data, icao]);
-
-  const handleTimeSort = () => {
-    setSortConfig(current => ({
-      key: 'time',
-      direction: current.key === 'time' && current.direction === 'asc' ? 'desc' : 'asc'
-    }));
-  };
-
-  const getFlightCategoryColor = (category: Metar['flightCategory']): string => {
-    switch (category) {
-      case 'VFR':
-        return 'bg-green-100 text-green-800';
-      case 'MVFR':
-        return 'bg-blue-100 text-blue-800';
-      case 'IFR':
-        return 'bg-red-100 text-red-800';
-      case 'LIFR':
-        return 'bg-purple-100 text-purple-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-fixed"
-        style={{
-          backgroundImage: `linear-gradient(to bottom, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.5)), url('https://images.unsplash.com/photo-1544950111-0c3082d5341e?auto=format&fit=crop&w=2560&q=80')`
-        }}
-      />
-      
+      <div className="plane" />
+      <div className="plane" />
+      <div className="plane" />
+      <div className="plane" />
       <div className="cloud" />
       <div className="cloud" />
       <div className="cloud" />
@@ -334,11 +365,13 @@ function App() {
 
       <div className="relative max-w-7xl mx-auto px-4 py-8">
         <div className="text-center mb-8 backdrop-blur-sm bg-white/30 rounded-xl p-8">
-          <h1 className="text-4xl font-bold text-blue-900 mb-4 flex items-center justify-center gap-3">
+          <div className="flex items-center justify-center gap-3 mb-2">
             <Radio className="w-10 h-10 text-blue-600" />
-            VATSIM Airport Tracker
-            <span className="text-lg font-normal text-blue-600">v1.0.0</span>
-          </h1>
+            <h1 className="text-4xl font-bold text-blue-900">VATSIM Airport Tracker</h1>
+          </div>
+          <div className="inline-flex items-center justify-center px-4 py-1 rounded-full bg-blue-600 text-white font-medium text-lg mb-6">
+            Version 1.0.1
+          </div>
           <div className="max-w-md mx-auto space-y-4">
             <div className="relative">
               <input
@@ -375,8 +408,15 @@ function App() {
           </div>
         </div>
 
+        {data?.pilots && (
+          <JessyTracker 
+            pilots={data.pilots}
+            onFlightSelect={handleFlightSelect}
+          />
+        )}
+
         {(airlineCode || icao) && (
-          <div className="space-y-6">
+          <div className="space-y-6 mt-6">
             {metar && icao && (
               <div className="backdrop-blur-sm bg-white/80 rounded-xl shadow-lg p-6 border border-blue-100">
                 <div className="flex justify-between items-start mb-4">
@@ -459,7 +499,7 @@ function App() {
                       </div>
                       <div className="space-y-1">
                         <p className="text-blue-800 font-medium">Information {atis.atis_code}</p>
-                        {atis.text_atis.map((line, index) => (
+                        {atis.text_atis?.map((line, index) => (
                           <p key={index} className="text-blue-700 text-sm">{line}</p>
                         ))}
                       </div>
@@ -476,8 +516,8 @@ function App() {
               </h2>
               <FlightMap 
                 pilots={filteredPilots}
-                selectedFlight={filters.callsign}
-                onFlightSelect={(callsign) => setFilters(prev => ({ ...prev, callsign }))}
+                selectedFlight={selectedFlight}
+                onFlightSelect={handleFlightSelect}
               />
             </div>
 
@@ -492,7 +532,10 @@ function App() {
                     <input
                       type="text"
                       value={filters.callsign}
-                      onChange={(e) => setFilters(prev => ({ ...prev, callsign: e.target.value }))}
+                      onChange={(e) => {
+                        setFilters(prev => ({ ...prev, callsign: e.target.value }));
+                        setSelectedFlight(e.target.value);
+                      }}
                       placeholder="Filter by callsign"
                       className="px-4 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80 backdrop-blur-sm"
                     />
@@ -525,17 +568,17 @@ function App() {
                         <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Aircraft</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">From</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">To</th>
-                        <th 
-                          className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider cursor-pointer hover:bg-blue-100/80 transition-colors"
-                          onClick={handleTimeSort}
-                        >
-                          {filters.status === 'departed' ? 'Departure Time' : 
-                           filters.status === 'arrived' ? 'Arrival Time' : 
-                           'Time'}
-                          {sortConfig.key === 'time' && (
-                            <span className="ml-1">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
-                          )}
-                        </th>
+                        {filters.status !== 'all' && (
+                          <th 
+                            className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider cursor-pointer hover:bg-blue-100/80 transition-colors"
+                            onClick={handleTimeSort}
+                          >
+                            {filters.status === 'departed' ? 'Departure Time' : 'Arrival Time'}
+                            {sortConfig.key === 'time' && (
+                              <span className="ml-1">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                            )}
+                          </th>
+                        )}
                         <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Route</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Status</th>
                       </tr>
@@ -550,14 +593,20 @@ function App() {
                           arrived: 'text-green-600'
                         };
                         return (
-                          <tr key={pilot.callsign} className="hover:bg-blue-50/50 transition-colors">
+                          <tr 
+                            key={pilot.callsign} 
+                            className="hover:bg-blue-50/50 transition-colors cursor-pointer"
+                            onClick={() => handleFlightSelect(pilot.callsign)}
+                          >
                             <td className="px-6 py-4 whitespace-nowrap font-medium text-blue-900">{pilot.callsign}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-blue-800">{pilot.flight_plan?.aircraft}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-blue-800">{pilot.flight_plan?.departure}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-blue-800">{pilot.flight_plan?.arrival}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-blue-800">
-                              {getTimeDisplay(pilot)}
-                            </td>
+                            {filters.status !== 'all' && (
+                              <td className="px-6 py-4 whitespace-nowrap text-blue-800">
+                                {getTimeDisplay(pilot)}
+                              </td>
+                            )}
                             <td className="px-6 py-4 text-blue-800 truncate max-w-xs" title={pilot.flight_plan?.route}>
                               {pilot.flight_plan?.route || 'N/A'}
                             </td>

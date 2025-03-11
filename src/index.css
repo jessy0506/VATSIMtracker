@@ -2,6 +2,102 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Retro Background Animation */
+@keyframes gridMove {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 50px 50px;
+  }
+}
+
+@keyframes gradientSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes flyPlane {
+  0% {
+    transform: translate(-100vw, 0) rotate(90deg);
+  }
+  100% {
+    transform: translate(100vw, 0) rotate(90deg);
+  }
+}
+
+body {
+  position: relative;
+  background: #1a1f35;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: 
+    linear-gradient(45deg, transparent 48%, rgba(80, 110, 255, 0.1) 50%, transparent 52%) 0 0 / 50px 50px,
+    linear-gradient(-45deg, transparent 48%, rgba(80, 110, 255, 0.1) 50%, transparent 52%) 0 0 / 50px 50px;
+  animation: gridMove 3s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at center, 
+    transparent 30%,
+    rgba(44, 55, 90, 0.4) 60%,
+    rgba(28, 35, 60, 0.6) 100%
+  );
+  animation: gradientSpin 30s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.plane {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M21,16v-2l-8-5V3.5C13,2.67,12.33,2,11.5,2S10,2.67,10,3.5V9l-8,5v2l8-2.5V19l-2,1.5V22l3.5-1l3.5,1v-1.5L13,19v-5.5L21,16z' fill='rgba(80, 110, 255, 0.3)'/%3E%3C/svg%3E");
+  background-size: contain;
+  animation: flyPlane 20s linear infinite;
+  z-index: 0;
+}
+
+.plane:nth-child(1) { 
+  top: 15%; 
+  animation-delay: 0s;
+}
+
+.plane:nth-child(2) { 
+  top: 35%; 
+  animation-delay: -5s;
+}
+
+.plane:nth-child(3) { 
+  top: 55%; 
+  animation-delay: -10s;
+}
+
+.plane:nth-child(4) { 
+  top: 75%; 
+  animation-delay: -7s;
+}
+
 @keyframes float {
   0% {
     transform: translateX(-100%);
@@ -23,7 +119,7 @@
   position: absolute;
   width: 200px;
   height: 60px;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 200px;
   animation: float 20s linear infinite;
   filter: blur(8px);
@@ -36,7 +132,7 @@
   left: 40px;
   width: 110px;
   height: 110px;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 50%;
 }
 
@@ -47,7 +143,7 @@
   right: 40px;
   width: 90px;
   height: 90px;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 50%;
 }
 
