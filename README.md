@@ -1,6 +1,7 @@
 Changes from 1.0.0 to 1.0.1:
 
 *Changes*
+
 -Aircraft icons on the map are now actually depicting an aircraft icon, rather than a square
 
 -Removed the time column from the 'All flights' list since I found it rather useless
