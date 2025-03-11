@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plane, Radio, Info, CloudSun, PlaneLanding, MapPin } from 'lucide-react';
 import { VatsimData, FilterOptions, Pilot, FlightStatus, Metar } from './types';
-import { format, addMinutes, utcToZonedTime } from 'date-fns';
+import { format, addMinutes, parse, isSameDay } from 'date-fns';
 import { fetchVatsimData, fetchMetar } from './api';
 import { FlightMap } from './components/FlightMap';
 
@@ -142,7 +142,6 @@ function App() {
         return 'N/A';
       }
 
-      // Create a UTC date object
       const now = new Date();
       const utcNow = new Date(
         now.getUTCFullYear(),
@@ -154,7 +153,13 @@ function App() {
       );
       
       const estimatedArrival = addMinutes(utcNow, Math.round(timeRemainingMinutes));
-      return format(estimatedArrival, 'HH:mm') + 'Z';
+      
+      // Always show the date if it's not today
+      if (isSameDay(utcNow, estimatedArrival)) {
+        return format(estimatedArrival, 'HH:mm') + 'Z';
+      } else {
+        return format(estimatedArrival, 'MMM d, HH:mm') + 'Z';
+      }
     } catch (error) {
       console.error('Error calculating estimated arrival:', error);
       return 'N/A';
@@ -178,15 +183,43 @@ function App() {
   };
 
   const getTimeValue = (pilot: Pilot): number => {
-    const time = getTimeDisplay(pilot);
-    if (time === 'N/A' || time === 'Landed') return Infinity;
+    const timeStr = getTimeDisplay(pilot);
+    if (timeStr === 'N/A' || timeStr === 'Landed') return Infinity;
     
-    // Parse the time string (HH:mmZ format)
-    const [hours, minutes] = time.slice(0, -1).split(':').map(Number);
-    
-    // For sorting purposes, adjust midnight (00) to 24 to ensure correct ordering
-    const adjustedHours = hours === 0 ? 24 : hours;
-    return (adjustedHours * 60) + minutes;
+    const now = new Date();
+    const utcNow = new Date(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      now.getUTCHours(),
+      now.getUTCMinutes(),
+      now.getUTCSeconds()
+    );
+
+    try {
+      let date: Date;
+      
+      if (timeStr.includes(',')) {
+        // Parse date with format "MMM d, HH:mm"
+        const [datePart, timePart] = timeStr.slice(0, -1).split(', ');
+        const [hours, minutes] = timePart.split(':').map(Number);
+        
+        date = new Date(utcNow);
+        date.setUTCMonth(parse(datePart, 'MMM d', new Date()).getMonth());
+        date.setUTCDate(parse(datePart, 'MMM d', new Date()).getDate());
+        date.setUTCHours(hours, minutes, 0, 0);
+      } else {
+        // Parse time-only format "HH:mmZ"
+        const [hours, minutes] = timeStr.slice(0, -1).split(':').map(Number);
+        date = new Date(utcNow);
+        date.setUTCHours(hours, minutes, 0, 0);
+      }
+
+      return date.getTime();
+    } catch (error) {
+      console.error('Error parsing time:', error);
+      return Infinity;
+    }
   };
 
   const filteredPilots = React.useMemo(() => {
@@ -304,6 +337,7 @@ function App() {
           <h1 className="text-4xl font-bold text-blue-900 mb-4 flex items-center justify-center gap-3">
             <Radio className="w-10 h-10 text-blue-600" />
             VATSIM Airport Tracker
+            <span className="text-lg font-normal text-blue-600">v1.0.0</span>
           </h1>
           <div className="max-w-md mx-auto space-y-4">
             <div className="relative">
