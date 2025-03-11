@@ -1,3 +1,29 @@
+Changes from 1.0.0 to 1.0.1:
+*Changes*
+-Aircraft icons on the map are now actually depicting an aircraft icon, rather than a square
+-Removed the time column from the 'All flights' list since I found it rather useless
+
+
+
+
+*Fixes*
+-Fixed some airport controllers not being shown in the active controllers table
+-Fixed white screen when an airport has an ATIS, but no text inside it
+
+
+
+
+*Newly added*
+-Added the ability to click on a callsign to focus the map on that flight
+-Added a background to the website
+-Added "Is jessy flying?" section showing if I'm online and doing a flight. Feel free to track me!
+
+
+
+
+
+
+
 This is a small VATSIM flight tracker I made. May contain bugs or issues.
 I'll be active on Github alot! If you have any feature requests or suggestions, let me know via an issue here on Github, or contact me on discord: diemalsejesbes
 
