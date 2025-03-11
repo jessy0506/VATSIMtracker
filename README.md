@@ -32,6 +32,13 @@ Changes from 1.0.0 to 1.0.1:
 
 
 
+
+
+
+
+
+
+
 This is a small VATSIM flight tracker I made. May contain bugs or issues.
 I'll be active on Github alot! If you have any feature requests or suggestions, let me know via an issue here on Github, or contact me on discord: diemalsejesbes
 
